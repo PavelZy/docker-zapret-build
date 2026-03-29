@@ -1,0 +1,38 @@
+name: Build Zapret2 for MikroTik
+on: [workflow_dispatch] # Запуск кнопкой вручную
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Set up QEMU
+        uses: docker/setup-qemu-action@v3
+
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v3
+
+      - name: Create Dockerfile
+        run: |
+          cat <<EOF > Dockerfile
+          FROM --platform=linux/arm/v7 alpine:latest
+          RUN apk add --no-cache git build-base linux-headers zlib-dev iptables ip6tables
+          RUN git clone https://github.com /zapret2
+          WORKDIR /zapret2
+          RUN make
+          # Команда по умолчанию (можно менять в env на MikroTik)
+          CMD ["/zapret2/nfq/nfqws", "--version"]
+          EOF
+
+      - name: Build and Save Image
+        run: |
+          docker buildx build --platform linux/arm/v7 -t zapret2:latest --load .
+          docker save zapret2:latest -o zapret2_armv7.tar
+
+      - name: Upload Artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: zapret2-image
+          path: zapret2_armv7.tar
