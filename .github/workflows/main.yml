@@ -1,5 +1,5 @@
 name: Build Zapret2 for MikroTik
-on: [workflow_dispatch] # Запуск кнопкой вручную
+on: [workflow_dispatch]
 
 jobs:
   build:
@@ -13,18 +13,6 @@ jobs:
 
       - name: Set up Docker Buildx
         uses: docker/setup-buildx-action@v3
-
-      - name: Create Dockerfile
-        run: |
-          cat <<EOF > Dockerfile
-          FROM --platform=linux/arm/v7 alpine:latest
-          RUN apk add --no-cache git build-base linux-headers zlib-dev iptables ip6tables
-          RUN git clone https://github.com /zapret2
-          WORKDIR /zapret2
-          RUN make
-          # Команда по умолчанию (можно менять в env на MikroTik)
-          CMD ["/zapret2/nfq/nfqws", "--version"]
-          EOF
 
       - name: Build and Save Image
         run: |
