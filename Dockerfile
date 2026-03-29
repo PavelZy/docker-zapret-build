@@ -5,8 +5,12 @@ RUN apk add --no-cache git build-base linux-headers zlib-dev iptables ip6tables 
 RUN git clone https://github.com/bol-van/zapret2
 WORKDIR /zapret2
 
-# ХАК: Вставляем "return true;" в самое начало функции droproot
+# ХАК 1: Отключаем сброс прав (уже работает)
 RUN sed -i '/bool droproot(uid_t uid, const char \*user, const gid_t \*gid, int gid_count)/!b;n;c{ return true;' nfq2/sec.c
+
+# ХАК 2: Игнорируем ошибки привязки к протоколу AF_INET (специально для MikroTik)
+RUN sed -i 's/if (nfq_unbind_pf(h, AF_INET) < 0)/if (0)/' nfq2/nfqws.c
+RUN sed -i 's/if (nfq_bind_pf(h, AF_INET) < 0)/if (0)/' nfq2/nfqws.c
 
 RUN make
 
