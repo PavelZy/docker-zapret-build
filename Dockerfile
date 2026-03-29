@@ -5,8 +5,8 @@ RUN apk add --no-cache git build-base linux-headers zlib-dev iptables ip6tables 
 RUN git clone https://github.com/bol-van/zapret2
 WORKDIR /zapret2
 
-# Более надежный способ вырезать setgroups (заменяем вызов на (0))
-RUN sed -i 's/setgroups(0, NULL)/(0)/g' nfq2/sec.c
+# ХАК: Вставляем "return true;" в самое начало функции droproot
+RUN sed -i '/bool droproot(uid_t uid, const char \*user, const gid_t \*gid, int gid_count)/!b;n;c{ return true;' nfq2/sec.c
 
 RUN make
 
