@@ -8,9 +8,13 @@ WORKDIR /zapret2
 # ХАК 1: Отключаем сброс прав (уже работает)
 RUN sed -i '/bool droproot(uid_t uid, const char \*user, const gid_t \*gid, int gid_count)/!b;n;c{ return true;' nfq2/sec.c
 
-# ХАК 2: Игнорируем ошибки привязки к протоколу AF_INET (специально для MikroTik)
-RUN sed -i 's/if (nfq_unbind_pf(h, AF_INET) < 0)/if (0)/' nfq2/nfqws.c
-RUN sed -i 's/if (nfq_bind_pf(h, AF_INET) < 0)/if (0)/' nfq2/nfqws.c
+# ХАК 2: Полностью вырезаем блоки привязки к протоколам в nfq2/nfqws.c
+# Мы находим строки с unbind/bind и заменяем их на комментарии или удаляем.
+# Самый надежный путь - замена вызова на (0), чтобы переменная h не терялась.
+RUN sed -i 's/if (nfq_unbind_pf(\*h, AF_INET) < 0)/if (0)/g' nfq2/nfqws.c
+RUN sed -i 's/if (nfq_bind_pf(\*h, AF_INET) < 0)/if (0)/g' nfq2/nfqws.c
+RUN sed -i 's/if (nfq_unbind_pf(\*h, AF_INET6) < 0)/if (0)/g' nfq2/nfqws.c
+RUN sed -i 's/if (nfq_bind_pf(\*h, AF_INET6) < 0)/if (0)/g' nfq2/nfqws.c
 
 RUN make
 
