@@ -16,7 +16,7 @@ jobs:
           cat <<EOF > Dockerfile
           FROM --platform=linux/arm/v7 alpine:latest AS builder
           RUN apk add --no-cache git build-base linux-headers zlib-dev libcap-dev
-          RUN git clone https://github.com /zapret
+          RUN git clone https://github.com/bol-van/zapret
           WORKDIR /zapret/tpws
           RUN make
 
