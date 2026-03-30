@@ -5,22 +5,21 @@ RUN apk add --no-cache git build-base linux-headers zlib-dev iptables ip6tables 
 RUN git clone https://github.com/bol-van/zapret2
 WORKDIR /zapret2
 
-# 1. Исправляем droproot (уже проверено, это нужно)
-RUN sed -i '/bool droproot(uid_t uid, const char \*user, const gid_t \*gid, int gid_count)/!b;n;c{ return true;' nfq2/sec.c || true
+# 1. ХАК: Сброс прав (уже работает)
+RUN find . -name "sec.c" -exec sed -i '/bool droproot(uid_t uid, const char \*user, const gid_t \*gid, int gid_count)/!b;n;c{ return true;' {} +
 
-# 2. Ищем все папки с Makefile и пытаемся собрать их
-RUN find . -maxdepth 2 -name "Makefile" -exec sh -c 'cd $(dirname {}) && make' \; || true
+# 2. ХАК: Игнорируем ошибки BIND/UNBIND (теперь точно попадем в цель)
+RUN find . -name "nfqws.c" -exec sed -i 's/if (nfq_unbind_pf(\*h, AF_INET) < 0)/if (0)/g' {} + && \
+    find . -name "nfqws.c" -exec sed -i 's/if (nfq_bind_pf(\*h, AF_INET) < 0)/if (0)/g' {} +
 
-# 3. Выводим список всех исполняемых файлов, которые удалось собрать
-RUN find . -maxdepth 3 -executable -type f
+# 3. ХАК: Игнорируем ошибки установки MODE и MAXLEN (чтобы MikroTik не ругался на параметры очереди)
+RUN find . -name "nfqws.c" -exec sed -i 's/goto exiterr;/;/' {} +
+
+RUN make
 
 FROM alpine:latest
 RUN apk add --no-cache luajit iptables ip6tables libnetfilter_queue libmnl libcap zlib
 COPY --from=builder /zapret2 /zapret2
-
-# Пытаемся создать ссылки на всё, что нашли
-RUN find /zapret2 -name nfqws2 -type f -exec ln -s {} /usr/bin/nfqws2 \; || true
-RUN find /zapret2 -name tpws -type f -exec ln -s {} /usr/bin/tpws \; || true
-
+RUN ln -s /zapret2/binaries/my/nfqws2 /usr/bin/nfqws2 || true
 WORKDIR /zapret2
 CMD ["sleep", "1800"]
