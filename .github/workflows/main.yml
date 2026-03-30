@@ -1,26 +1,39 @@
-name: Build Zapret2 for MikroTik
+name: Build Zapret v1 TPWS for MikroTik
 on: [workflow_dispatch]
 
 jobs:
   build:
     runs-on: ubuntu-latest
     steps:
-      - name: Checkout
-        uses: actions/checkout@v4
-
       - name: Set up QEMU
         uses: docker/setup-qemu-action@v3
 
       - name: Set up Docker Buildx
         uses: docker/setup-buildx-action@v3
 
+      - name: Create Dockerfile
+        run: |
+          cat <<EOF > Dockerfile
+          FROM --platform=linux/arm/v7 alpine:latest AS builder
+          RUN apk add --no-cache git build-base linux-headers zlib-dev libcap-dev
+          RUN git clone https://github.com /zapret
+          WORKDIR /zapret/tpws
+          RUN make
+
+          FROM --platform=linux/arm/v7 alpine:latest
+          RUN apk add --no-cache zlib libcap
+          COPY --from=builder /zapret/tpws/tpws /usr/bin/tpws
+          # Запуск по умолчанию на порту 999
+          CMD ["tpws", "--port", "999", "--uid", "0"]
+          EOF
+
       - name: Build and Save Image
         run: |
-          docker buildx build --platform linux/arm/v7 -t zapret2:latest --load .
-          docker save zapret2:latest -o zapret2_armv7.tar
+          docker buildx build --platform linux/arm/v7 -t zapret_v1:latest --load .
+          docker save zapret_v1:latest -o zapret_v1_armv7.tar
 
       - name: Upload Artifact
         uses: actions/upload-artifact@v4
         with:
-          name: zapret2-image
-          path: zapret2_armv7.tar
+          name: zapret-v1-image
+          path: zapret_v1_armv7.tar
