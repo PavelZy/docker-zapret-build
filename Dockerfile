@@ -3,22 +3,24 @@ RUN apk add --no-cache git build-base linux-headers zlib-dev iptables ip6tables 
     luajit-dev bsd-compat-headers libcap-dev libnetfilter_queue-dev libmnl-dev
 
 RUN git clone https://github.com/bol-van/zapret2
+WORKDIR /zapret2
 
-# ХАК: Правим sec.c для работы под Root на MikroTik (ищем в обоих возможных местах)
-RUN sed -i '/bool droproot(uid_t uid, const char \*user, const gid_t \*gid, int gid_count)/!b;n;c{ return true;' src/nfq2/sec.c || \
-    sed -i '/bool droproot(uid_t uid, const char \*user, const gid_t \*gid, int gid_count)/!b;n;c{ return true;' nfq2/sec.c || true
+# 1. Исправляем droproot (уже проверено, это нужно)
+RUN sed -i '/bool droproot(uid_t uid, const char \*user, const gid_t \*gid, int gid_count)/!b;n;c{ return true;' nfq2/sec.c || true
 
-# Собираем все компоненты по новым путям
-RUN cd src/nfq2 && make || cd nfq2 && make
-RUN cd src/tpws && make || cd tpws && make
+# 2. Ищем все папки с Makefile и пытаемся собрать их
+RUN find . -maxdepth 2 -name "Makefile" -exec sh -c 'cd $(dirname {}) && make' \; || true
+
+# 3. Выводим список всех исполняемых файлов, которые удалось собрать
+RUN find . -maxdepth 3 -executable -type f
 
 FROM alpine:latest
 RUN apk add --no-cache luajit iptables ip6tables libnetfilter_queue libmnl libcap zlib
 COPY --from=builder /zapret2 /zapret2
 
-# Создаем симлинки на бинарники (пробуем оба пути)
-RUN ln -s /zapret2/src/nfq2/nfqws2 /usr/bin/nfqws2 || ln -s /zapret2/nfq2/nfqws2 /usr/bin/nfqws2 || true
-RUN ln -s /zapret2/src/tpws/tpws /usr/bin/tpws || ln -s /zapret2/tpws/tpws /usr/bin/tpws || true
+# Пытаемся создать ссылки на всё, что нашли
+RUN find /zapret2 -name nfqws2 -type f -exec ln -s {} /usr/bin/nfqws2 \; || true
+RUN find /zapret2 -name tpws -type f -exec ln -s {} /usr/bin/tpws \; || true
 
 WORKDIR /zapret2
 CMD ["sleep", "1800"]
